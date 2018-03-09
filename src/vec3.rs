@@ -1,7 +1,7 @@
 use std::ops::Index;
 
 pub struct Vec3 {
-    pub e: [f32; 3]
+    e: [f32; 3]
 }
 
 impl Vec3 {
