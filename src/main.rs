@@ -1,5 +1,4 @@
 // cargo run > out.ppm
-// Chapter 1 - done
 mod vec3;
 use vec3::{Vec3,unit_vector};
 mod ray;

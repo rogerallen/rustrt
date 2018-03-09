@@ -70,3 +70,33 @@ impl Div<f64> for Vec3 {
 pub fn unit_vector(v: Vec3) -> Vec3 {
     v / v.length()
 }
+
+// ======================================================================
+// Unit testing
+// ======================================================================
+impl PartialEq for Vec3 {
+    fn eq(&self, v2: &Vec3) -> bool {
+        self.e[0] == v2.e[0] && self.e[1] == v2.e[1] && self.e[2] == v2.e[2]
+    }
+}
+
+#[test]
+fn test_add() {
+    assert_eq!(Vec3::new(1.0,2.0,3.0) + Vec3::new(1.0,2.0,3.0),
+               Vec3::new(2.0,4.0,6.0));
+}
+#[test]
+fn test_sub() {
+    assert_eq!(Vec3::new(1.0,2.0,3.0) - Vec3::new(1.0,2.0,3.0),
+               Vec3::new(0.0,0.0,0.0));
+}
+#[test]
+fn test_mul() {
+    assert_eq!(Vec3::new(1.0,2.0,3.0) * Vec3::new(1.0,2.0,3.0),
+               Vec3::new(1.0,4.0,9.0));
+}
+#[test]
+fn test_div() {
+    assert_eq!(Vec3::new(1.0,2.0,3.0) / Vec3::new(1.0,2.0,3.0),
+               Vec3::new(1.0,1.0,1.0));
+}
