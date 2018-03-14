@@ -4,6 +4,7 @@ extern crate rand;
 mod camera;
 mod hitable;
 mod hitable_list;
+mod material;
 mod ray;
 mod sphere;
 mod vec3;
@@ -11,29 +12,23 @@ mod vec3;
 use camera::Camera;
 use hitable::{HitRecord, Hitable};
 use hitable_list::HitableList;
+use material::{scatter, Material};
+use rand::Rng;
 use ray::Ray;
 use sphere::Sphere;
-use vec3::{unit_vector, Vec3};
 use std::f64;
-use rand::Rng;
+use vec3::{unit_vector, Vec3};
 
-fn random_in_unit_sphere() -> Vec3 {
-    let mut rng = rand::thread_rng();
-    // no do..while in rust.  :(
-    let mut p = 2.0 * Vec3::new(rng.gen::<f64>(), rng.gen::<f64>(), rng.gen::<f64>())
-        - Vec3::new(1.0, 1.0, 1.0);
-    while p.squared_length() >= 1.0 {
-        p = 2.0 * Vec3::new(rng.gen::<f64>(), rng.gen::<f64>(), rng.gen::<f64>())
-            - Vec3::new(1.0, 1.0, 1.0);
-    }
-    p
-}
-
-fn color(r: &Ray, world: &HitableList) -> Vec3 {
+fn color(r: &Ray, world: &HitableList, depth: i32) -> Vec3 {
     let mut rec = HitRecord::new();
     if world.hit(r, 0.001, f64::MAX, &mut rec) {
-        let target = rec.p + rec.normal + random_in_unit_sphere();
-        0.5 * color(&Ray::new(rec.p, target - rec.p), world)
+        let mut scattered = Ray::new(Vec3::new(0.0, 0.0, 0.0), Vec3::new(0.0, 0.0, 0.0));
+        let mut attenuation = Vec3::new(0.0, 0.0, 0.0);
+        if depth < 50 && scatter(r, &mut rec, &mut attenuation, &mut scattered) {
+            attenuation * color(&scattered, world, depth + 1)
+        } else {
+            Vec3::new(0.0, 0.0, 0.0)
+        }
     } else {
         let unit_direction = unit_vector(r.direction());
         let t = 0.5 * (unit_direction.y() + 1.0);
@@ -48,8 +43,36 @@ fn main() {
     let ns = 100;
     println!("P3\n{0} {1} 255", nx, ny);
     let mut world = HitableList::new();
-    world.push(Sphere::new(Vec3::new(0.0, 0.0, -1.0), 0.5));
-    world.push(Sphere::new(Vec3::new(0.0, -100.5, -1.0), 100.0));
+    world.push(Sphere::new(
+        Vec3::new(0.0, 0.0, -1.0),
+        0.5,
+        Material::Lambertian {
+            albedo: Vec3::new(0.8, 0.3, 0.3),
+        },
+    ));
+    world.push(Sphere::new(
+        Vec3::new(0.0, -100.5, -1.0),
+        100.0,
+        Material::Lambertian {
+            albedo: Vec3::new(0.8, 0.8, 0.0),
+        },
+    ));
+    world.push(Sphere::new(
+        Vec3::new(1.0, 0.0, -1.0),
+        0.5,
+        Material::Metal {
+            albedo: Vec3::new(0.8, 0.6, 0.2),
+            fuzz: 1.0,
+        },
+    ));
+    world.push(Sphere::new(
+        Vec3::new(-1.0, 0.0, -1.0),
+        0.5,
+        Material::Metal {
+            albedo: Vec3::new(0.8, 0.8, 0.8),
+            fuzz: 0.3,
+        },
+    ));
     let cam = Camera::new();
     for j in (0..ny).rev() {
         for i in 0..nx {
@@ -59,7 +82,7 @@ fn main() {
                 let v = (j as f64 + rng.gen::<f64>()) / (ny as f64);
                 let r = cam.get_ray(u, v);
                 // ??? let p = r.point_at_parameter(2.0);
-                col += color(&r, &world);
+                col += color(&r, &world, 0);
             }
             col /= ns as f64;
             col = Vec3::new(col[0].sqrt(), col[1].sqrt(), col[2].sqrt());

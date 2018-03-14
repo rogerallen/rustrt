@@ -33,6 +33,7 @@ impl hitable::Hitable for HitableList {
                 rec.t = temp_rec.t;
                 rec.p = temp_rec.p;
                 rec.normal = temp_rec.normal;
+                rec.material = self.spheres[i].material;
             }
         }
         hit_anything

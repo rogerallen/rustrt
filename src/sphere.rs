@@ -1,16 +1,22 @@
 use vec3::{dot, Vec3};
 use ray::Ray;
 use hitable::{HitRecord, Hitable};
+use material::Material;
 
 #[derive(Clone, Copy, Debug)]
 pub struct Sphere {
     center: Vec3,
     radius: f64,
+    pub material: Material, // FIXME reference?
 }
 
 impl Sphere {
-    pub fn new(center: Vec3, radius: f64) -> Sphere {
-        Sphere { center, radius }
+    pub fn new(center: Vec3, radius: f64, material: Material) -> Sphere {
+        Sphere {
+            center,
+            radius,
+            material,
+        }
     }
 }
 
