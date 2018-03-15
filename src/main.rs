@@ -43,6 +43,7 @@ fn main() {
     let ns = 100;
     println!("P3\n{0} {1} 255", nx, ny);
     let mut world = HitableList::new();
+    /* original world */
     world.push(Sphere::new(
         Vec3::new(0.0, 0.0, -1.0),
         0.5,
@@ -79,7 +80,30 @@ fn main() {
         -0.45, // makes a bubble inside sphere
         Material::Dielectric { ref_idx: 1.5 },
     ));
-    let cam = Camera::new();
+    /* red/blue ball world
+    let R = (std::f64::consts::PI/4.0).cos();
+    world.push(Sphere::new(
+        Vec3::new(-R, 0.0, -1.0),
+        R,
+        Material::Lambertian {
+            albedo: Vec3::new(0.0, 0.0, 1.0),
+        },
+    ));
+    world.push(Sphere::new(
+        Vec3::new(R, 0.0, -1.0),
+        R,
+        Material::Lambertian {
+            albedo: Vec3::new(1.0, 0.0, 0.0),
+        },
+    ));
+    */
+    let cam = Camera::new(
+        Vec3::new(-2., 2., 1.),
+        Vec3::new(0., 0., -1.),
+        Vec3::new(0., 1., 0.),
+        20.0,
+        nx as f64 / ny as f64,
+    );
     for j in (0..ny).rev() {
         for i in 0..nx {
             let mut col = Vec3::new(0.0, 0.0, 0.0);
