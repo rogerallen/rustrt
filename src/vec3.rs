@@ -202,8 +202,8 @@ pub fn unit_vector(v: Vec3) -> Vec3 {
 }
 
 pub fn random_in_unit_sphere() -> Vec3 {
-    let mut rng = rand::thread_rng();
-    // no do..while in rust.  :(
+    let mut rng = rand::thread_rng(); // FIXME for perf
+                                      // no do..while in rust.  :(
     let mut p = 2.0 * Vec3::new(rng.gen::<f64>(), rng.gen::<f64>(), rng.gen::<f64>())
         - Vec3::new(1.0, 1.0, 1.0);
     while p.squared_length() >= 1.0 {
@@ -215,6 +215,17 @@ pub fn random_in_unit_sphere() -> Vec3 {
 
 pub fn reflect(v: &Vec3, n: &Vec3) -> Vec3 {
     (*v) - 2.0 * dot(v, n) * (*n)
+}
+
+pub fn refract(v: &Vec3, n: &Vec3, ni_over_nt: f64, refracted: &mut Vec3) -> bool {
+    let uv = unit_vector(*v);
+    let dt = dot(&uv, n);
+    let discriminant = 1.0 - ni_over_nt * ni_over_nt * (1.0 - dt * dt);
+    if discriminant > 0.0 {
+        *refracted = ni_over_nt * (uv - (*n) * dt) - (*n) * discriminant.sqrt();
+        return true;
+    }
+    false
 }
 
 // ======================================================================

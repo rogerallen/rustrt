@@ -47,7 +47,7 @@ fn main() {
         Vec3::new(0.0, 0.0, -1.0),
         0.5,
         Material::Lambertian {
-            albedo: Vec3::new(0.8, 0.3, 0.3),
+            albedo: Vec3::new(0.1, 0.3, 0.5),
         },
     ));
     world.push(Sphere::new(
@@ -68,10 +68,16 @@ fn main() {
     world.push(Sphere::new(
         Vec3::new(-1.0, 0.0, -1.0),
         0.5,
-        Material::Metal {
-            albedo: Vec3::new(0.8, 0.8, 0.8),
-            fuzz: 0.3,
-        },
+        //Material::Metal {
+        //    albedo: Vec3::new(0.8, 0.8, 0.8),
+        //    fuzz: 0.3,
+        //},
+        Material::Dielectric { ref_idx: 1.5 },
+    ));
+    world.push(Sphere::new(
+        Vec3::new(-1.0, 0.0, -1.0),
+        -0.45, // makes a bubble inside sphere
+        Material::Dielectric { ref_idx: 1.5 },
     ));
     let cam = Camera::new();
     for j in (0..ny).rev() {
