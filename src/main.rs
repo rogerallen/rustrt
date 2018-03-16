@@ -96,7 +96,6 @@ fn redblue_scene(world: &mut HitableList) {
 
 fn final_scene(world: &mut HitableList) {
     let mut rng = rand::thread_rng();
-    let n = 500;
     world.push(Sphere::new(Vec3::new(0.,-1000.,0.), 1000., Material::Lambertian { albedo: Vec3::new(0.5, 0.5, 0.5) } ));
 
     for a in -11..11 {
@@ -128,9 +127,9 @@ fn final_scene(world: &mut HitableList) {
 
 fn main() {
     let mut rng = rand::thread_rng();
-    let nx = 800;
-    let ny = 400;
-    let ns = 100;
+    let nx = 1200;
+    let ny = 800;
+    let ns = 10;
     println!("P3\n{0} {1} 255", nx, ny);
 
     let mut world = HitableList::new();
@@ -138,10 +137,11 @@ fn main() {
     //redblue_scene(&mut world);
     final_scene(&mut world);
 
-    let lookfrom = Vec3::new(8., 1.5, 2.);
-    let lookat = Vec3::new(0., 1., -1.);
-    let dist_to_focus = (lookfrom - lookat).length();
-    let aperture = 0.05;
+    let lookfrom = Vec3::new(13., 2., 3.);
+    let lookat = Vec3::new(0., 0., 0.);
+    let dist_to_focus = 10.0;//(lookfrom - lookat).length();
+    let aperture = 0.1;
+
     let cam = Camera::new(
         lookfrom,
         lookat,
