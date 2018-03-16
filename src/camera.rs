@@ -1,5 +1,5 @@
 use ray::Ray;
-use vec3::{cross, unit_vector, Vec3};
+use vec3::{cross, random_in_unit_disk, unit_vector, Vec3};
 use std;
 
 #[derive(Clone, Copy, Debug)]
@@ -8,10 +8,22 @@ pub struct Camera {
     lower_left_corner: Vec3,
     horizontal: Vec3,
     vertical: Vec3,
+    u: Vec3,
+    v: Vec3,
+    w: Vec3,
+    lens_radius: f64,
 }
 
 impl Camera {
-    pub fn new(lookfrom: Vec3, lookat: Vec3, vup: Vec3, vfov: f64, aspect: f64) -> Camera {
+    pub fn new(
+        lookfrom: Vec3,
+        lookat: Vec3,
+        vup: Vec3,
+        vfov: f64,
+        aspect: f64,
+        aperture: f64,
+        focus_dist: f64,
+    ) -> Camera {
         let theta = vfov * std::f64::consts::PI / 180.0;
         let half_height = (theta / 2.0).tan();
         let half_width = aspect * half_height;
@@ -20,15 +32,22 @@ impl Camera {
         let v = cross(&w, &u);
         Camera {
             origin: lookfrom,
-            lower_left_corner: lookfrom - half_width * u - half_height * v - w,
-            horizontal: 2.0 * half_width * u,
-            vertical: 2.0 * half_height * v,
+            lower_left_corner: lookfrom - half_width * focus_dist * u - half_height * focus_dist * v
+                - focus_dist * w,
+            horizontal: 2.0 * half_width * focus_dist * u,
+            vertical: 2.0 * half_height * focus_dist * v,
+            u: u,
+            v: v,
+            w: w,
+            lens_radius: aperture / 2.0,
         }
     }
-    pub fn get_ray(&self, u: f64, v: f64) -> Ray {
+    pub fn get_ray(&self, s: f64, t: f64) -> Ray {
+        let rd = self.lens_radius * random_in_unit_disk();
+        let offset = self.u * rd.x() + self.v * rd.y();
         Ray::new(
-            self.origin,
-            self.lower_left_corner + u * self.horizontal + v * self.vertical - self.origin,
+            self.origin + offset,
+            self.lower_left_corner + s * self.horizontal + t * self.vertical - self.origin - offset,
         )
     }
 }

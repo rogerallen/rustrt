@@ -213,6 +213,15 @@ pub fn random_in_unit_sphere() -> Vec3 {
     p
 }
 
+pub fn random_in_unit_disk() -> Vec3 {
+    let mut rng = rand::thread_rng(); // FIXME for perf
+    let mut p = 2.0 * Vec3::new(rng.gen::<f64>(), rng.gen::<f64>(), 0.) - Vec3::new(1.0, 1.0, 0.0);
+    while p.squared_length() >= 1.0 {
+        p = 2.0 * Vec3::new(rng.gen::<f64>(), rng.gen::<f64>(), 0.) - Vec3::new(1.0, 1.0, 0.0);
+    }
+    p
+}
+
 pub fn reflect(v: &Vec3, n: &Vec3) -> Vec3 {
     (*v) - 2.0 * dot(v, n) * (*n)
 }

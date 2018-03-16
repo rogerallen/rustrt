@@ -96,13 +96,19 @@ fn main() {
             albedo: Vec3::new(1.0, 0.0, 0.0),
         },
     ));
-    */
+     */
+    let lookfrom = Vec3::new(3., 3., 2.);
+    let lookat = Vec3::new(0., 0., -1.);
+    let dist_to_focus = (lookfrom - lookat).length();
+    let aperture = 2.0;
     let cam = Camera::new(
-        Vec3::new(-2., 2., 1.),
-        Vec3::new(0., 0., -1.),
+        lookfrom,
+        lookat,
         Vec3::new(0., 1., 0.),
         20.0,
         nx as f64 / ny as f64,
+        aperture,
+        dist_to_focus,
     );
     for j in (0..ny).rev() {
         for i in 0..nx {
