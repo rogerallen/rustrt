@@ -1,6 +1,5 @@
 use std::ops::{Add, AddAssign, Div, DivAssign, Index, IndexMut, Mul, MulAssign, Neg, Sub,
                SubAssign};
-use rand;
 use rand::Rng;
 
 #[derive(Clone, Copy, Debug)]
@@ -232,9 +231,8 @@ pub fn unit_vector(v: Vec3) -> Vec3 {
 }
 
 #[inline(always)]
-pub fn random_in_unit_sphere() -> Vec3 {
-    let mut rng = rand::thread_rng(); // FIXME for perf
-                                      // no do..while in rust.  :(
+pub fn random_in_unit_sphere<R: Rng>(rng: &mut R) -> Vec3 {
+    // no do..while in rust.  :(
     let mut p = 2.0 * Vec3::new(rng.gen::<f64>(), rng.gen::<f64>(), rng.gen::<f64>())
         - Vec3::new(1.0, 1.0, 1.0);
     while p.squared_length() >= 1.0 {
@@ -245,8 +243,7 @@ pub fn random_in_unit_sphere() -> Vec3 {
 }
 
 #[inline(always)]
-pub fn random_in_unit_disk() -> Vec3 {
-    let mut rng = rand::thread_rng(); // FIXME for perf
+pub fn random_in_unit_disk<R: Rng>(rng: &mut R) -> Vec3 {
     let mut p = 2.0 * Vec3::new(rng.gen::<f64>(), rng.gen::<f64>(), 0.) - Vec3::new(1.0, 1.0, 0.0);
     while p.squared_length() >= 1.0 {
         p = 2.0 * Vec3::new(rng.gen::<f64>(), rng.gen::<f64>(), 0.) - Vec3::new(1.0, 1.0, 0.0);

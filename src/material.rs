@@ -1,7 +1,6 @@
 use hitable::HitRecord;
 use vec3::{dot, random_in_unit_sphere, reflect, refract, unit_vector, Vec3};
 use ray::Ray;
-use rand;
 use rand::Rng;
 
 #[derive(Clone, Copy, Debug)]
@@ -11,10 +10,16 @@ pub enum Material {
     Dielectric { ref_idx: f64 },
 }
 
-pub fn scatter(r_in: &Ray, rec: &HitRecord, attenuation: &mut Vec3, scattered: &mut Ray) -> bool {
+pub fn scatter<R: Rng>(
+    r_in: &Ray,
+    rec: &HitRecord,
+    attenuation: &mut Vec3,
+    scattered: &mut Ray,
+    rng: &mut R,
+) -> bool {
     match rec.material {
         Material::Lambertian { ref albedo } => {
-            let target = rec.p + rec.normal + random_in_unit_sphere();
+            let target = rec.p + rec.normal + random_in_unit_sphere(rng);
             *scattered = Ray::new(rec.p, target - rec.p);
             *attenuation = *albedo;
             true
@@ -25,7 +30,7 @@ pub fn scatter(r_in: &Ray, rec: &HitRecord, attenuation: &mut Vec3, scattered: &
             ref fuzz,
         } => {
             let reflected = reflect(&unit_vector(r_in.direction()), &rec.normal);
-            *scattered = Ray::new(rec.p, reflected + *fuzz * random_in_unit_sphere());
+            *scattered = Ray::new(rec.p, reflected + *fuzz * random_in_unit_sphere(rng));
             *attenuation = *albedo;
             dot(&scattered.direction(), &rec.normal) > 0.0
         }
@@ -55,7 +60,6 @@ pub fn scatter(r_in: &Ray, rec: &HitRecord, attenuation: &mut Vec3, scattered: &
                 // no need for perf bug *scattered = Ray::new(rec.p, refracted);
                 reflect_prob = 1.0;
             }
-            let mut rng = rand::thread_rng(); // FIXME for perf
             if rng.gen::<f64>() < reflect_prob {
                 *scattered = Ray::new(rec.p, reflected);
             } else {
