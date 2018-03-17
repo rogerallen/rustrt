@@ -36,6 +36,7 @@ fn color<R: Rng>(r: &Ray, world: &HitableList, depth: i32, rng: &mut R) -> Vec3 
     }
 }
 
+#[allow(dead_code)]
 fn original_scene(world: &mut HitableList) -> &HitableList {
     /* original world */
     world.push(Sphere::new(
@@ -77,6 +78,7 @@ fn original_scene(world: &mut HitableList) -> &HitableList {
     world
 }
 
+#[allow(dead_code)]
 fn redblue_scene(world: &mut HitableList) -> &HitableList {
     let r = (std::f64::consts::PI / 4.0).cos();
     world.push(Sphere::new(
@@ -96,8 +98,8 @@ fn redblue_scene(world: &mut HitableList) -> &HitableList {
     world
 }
 
+#[allow(dead_code)]
 fn final_scene<'a, R: Rng>(world: &'a mut HitableList, rng: &mut R) -> &'a HitableList {
-    //let mut rng = rand::thread_rng();
     world.push(Sphere::new(
         Vec3::new(0., -1000., 0.),
         1000.,
@@ -176,14 +178,12 @@ fn final_scene<'a, R: Rng>(world: &'a mut HitableList, rng: &mut R) -> &'a Hitab
 }
 
 fn main() {
-    //let mut rng = rand::thread_rng();
-    let seed: &[_] = &[1, 2, 3, 4];
+    let seed: &[_] = &[1965, 1966, 1995, 2000];
     let mut rng: StdRng = SeedableRng::from_seed(seed);
 
-    let nx = 1200;
-    let ny = 800;
-    let ns = 10;
-    println!("P3\n{0} {1} 255", nx, ny);
+    const NX: usize = 600;
+    const NY: usize = 400;
+    const NS: i32 = 10;
 
     let mut the_world = HitableList::new();
     //let world = original_scene(&mut world);
@@ -194,33 +194,41 @@ fn main() {
     let lookat = Vec3::new(0., 0., 0.);
     let dist_to_focus = 10.0; //(lookfrom - lookat).length();
     let aperture = 0.1;
-
     let cam = Camera::new(
         lookfrom,
         lookat,
         Vec3::new(0., 1., 0.),
         30.0,
-        nx as f64 / ny as f64,
+        NX as f64 / NY as f64,
         aperture,
         dist_to_focus,
     );
 
-    for j in (0..ny).rev() {
-        for i in 0..nx {
+    let mut framebuffer = [[[0.0f64; 3]; NX]; NY];
+
+    for j in (0..NY).rev() {
+        for i in 0..NX {
             let mut col = Vec3::new(0.0, 0.0, 0.0);
-            for _s in 0..ns {
-                let u = (i as f64 + rng.gen::<f64>()) / (nx as f64);
-                let v = (j as f64 + rng.gen::<f64>()) / (ny as f64);
+            for _s in 0..NS {
+                let u = (i as f64 + rng.gen::<f64>()) / (NX as f64);
+                let v = (j as f64 + rng.gen::<f64>()) / (NY as f64);
                 let r = cam.get_ray(u, v, &mut rng);
-                // ??? let p = r.point_at_parameter(2.0);
                 col += color(&r, &world, 0, &mut rng);
             }
-            col /= ns as f64;
-            col = Vec3::new(col[0].sqrt(), col[1].sqrt(), col[2].sqrt());
-            let ir = (255.99 * col[0]) as i32;
-            let ig = (255.99 * col[1]) as i32;
-            let ib = (255.99 * col[2]) as i32;
-            println!("{0} {1} {2}", ir, ig, ib);
+            framebuffer[j][i][0] = col[0];
+            framebuffer[j][i][1] = col[1];
+            framebuffer[j][i][2] = col[2];
+        }
+    }
+
+    println!("P3\n{0} {1} 255", NX, NY);
+    for j in (0..NY).rev() {
+        for i in 0..NX {
+            // final div by samples & gamma correction
+            let ri = (255.99 * (framebuffer[j][i][0] / NS as f64).sqrt()) as u8;
+            let gi = (255.99 * (framebuffer[j][i][1] / NS as f64).sqrt()) as u8;
+            let bi = (255.99 * (framebuffer[j][i][2] / NS as f64).sqrt()) as u8;
+            println!("{0} {1} {2}", ri, gi, bi);
         }
     }
 }
