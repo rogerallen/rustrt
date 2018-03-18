@@ -178,7 +178,7 @@ fn final_scene<'a, R: Rng>(world: &'a mut HitableList, rng: &mut R) -> &'a Hitab
 }
 
 fn main() {
-    let seed: &[_] = &[1965, 1966, 1995, 2000];
+    let seed: &[_] = &[1984];
     let mut rng: StdRng = SeedableRng::from_seed(seed);
 
     const NX: usize = 600;
