@@ -218,20 +218,25 @@ fn main() {
         framebuffer.push(local_framebuffer);
     }
 
-    for j in (0..NY).rev() {
-        let c = j % num_logical_cores;
-        let y = j / num_logical_cores;
-        for i in 0..NX {
-            let mut col = Vec3::new(0.0, 0.0, 0.0);
-            for _s in 0..NS {
-                let u = (i as f64 + rng.gen::<f64>()) / (NX as f64);
-                let v = (j as f64 + rng.gen::<f64>()) / (NY as f64);
-                let r = cam.get_ray(u, v, &mut rng);
-                col += color(&r, &world, 0, &mut rng);
+    for c in 0..num_logical_cores {
+        // create something we can work on independently per core
+        for y in 0..y_per_core {
+            let j = y*num_logical_cores + c;
+            if j >= NY {
+                break;
             }
-            framebuffer[c][y][i][0] = col[0];
-            framebuffer[c][y][i][1] = col[1];
-            framebuffer[c][y][i][2] = col[2];
+            for i in 0..NX {
+                let mut col = Vec3::new(0.0, 0.0, 0.0);
+                for _s in 0..NS {
+                    let u = (i as f64 + rng.gen::<f64>()) / (NX as f64);
+                    let v = (j as f64 + rng.gen::<f64>()) / (NY as f64);
+                    let r = cam.get_ray(u, v, &mut rng);
+                    col += color(&r, &world, 0, &mut rng);
+                }
+                framebuffer[c][y][i][0] = col[0];
+                framebuffer[c][y][i][1] = col[1];
+                framebuffer[c][y][i][2] = col[2];
+            }
         }
     }
 
