@@ -1,5 +1,6 @@
 // cargo run > out.ppm
 extern crate rand;
+extern crate num_cpus;
 
 mod camera;
 mod hitable;
@@ -181,6 +182,8 @@ fn main() {
     let seed: &[_] = &[1984];
     let mut rng: StdRng = SeedableRng::from_seed(seed);
 
+    let num_logical_cores = num_cpus::get();
+
     const NX: usize = 600;
     const NY: usize = 400;
     const NS: i32 = 10;
@@ -204,9 +207,20 @@ fn main() {
         dist_to_focus,
     );
 
-    let mut framebuffer = [[[0.0f64; 3]; NX]; NY];
+    // create a vector of framebuffers, one per core
+    let y_per_core = NY/num_logical_cores + 1;
+    let mut framebuffer = Vec::<Vec<[[f64; 3]; NX]>>::new();
+    for _core in 0..num_logical_cores {
+        let mut local_framebuffer = Vec::<[[f64; 3]; NX]>:: new();
+        for _y in 0..y_per_core {
+            local_framebuffer.push([[0.0f64; 3]; NX]);
+        }
+        framebuffer.push(local_framebuffer);
+    }
 
     for j in (0..NY).rev() {
+        let c = j % num_logical_cores;
+        let y = j / num_logical_cores;
         for i in 0..NX {
             let mut col = Vec3::new(0.0, 0.0, 0.0);
             for _s in 0..NS {
@@ -215,19 +229,21 @@ fn main() {
                 let r = cam.get_ray(u, v, &mut rng);
                 col += color(&r, &world, 0, &mut rng);
             }
-            framebuffer[j][i][0] = col[0];
-            framebuffer[j][i][1] = col[1];
-            framebuffer[j][i][2] = col[2];
+            framebuffer[c][y][i][0] = col[0];
+            framebuffer[c][y][i][1] = col[1];
+            framebuffer[c][y][i][2] = col[2];
         }
     }
 
     println!("P3\n{0} {1} 255", NX, NY);
     for j in (0..NY).rev() {
+        let c = j % num_logical_cores;
+        let y = j / num_logical_cores;
         for i in 0..NX {
             // final div by samples & gamma correction
-            let ri = (255.99 * (framebuffer[j][i][0] / NS as f64).sqrt()) as u8;
-            let gi = (255.99 * (framebuffer[j][i][1] / NS as f64).sqrt()) as u8;
-            let bi = (255.99 * (framebuffer[j][i][2] / NS as f64).sqrt()) as u8;
+            let ri = (255.99 * (framebuffer[c][y][i][0] / NS as f64).sqrt()) as u8;
+            let gi = (255.99 * (framebuffer[c][y][i][1] / NS as f64).sqrt()) as u8;
+            let bi = (255.99 * (framebuffer[c][y][i][2] / NS as f64).sqrt()) as u8;
             println!("{0} {1} {2}", ri, gi, bi);
         }
     }

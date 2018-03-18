@@ -5,3 +5,4 @@ authors = ["Roger Allen <rallen@gmail.com>"]
 
 [dependencies]
 rand = "0.4"
+num_cpus = "1.0"
