@@ -1,6 +1,7 @@
 // cargo run > out.ppm
-extern crate rand;
 extern crate num_cpus;
+extern crate rand;
+extern crate scoped_threadpool;
 
 mod camera;
 mod hitable;
@@ -19,6 +20,7 @@ use ray::Ray;
 use sphere::Sphere;
 use std::f64;
 use vec3::{unit_vector, Vec3};
+use scoped_threadpool::Pool;
 
 fn color<R: Rng>(r: &Ray, world: &HitableList, depth: i32, rng: &mut R) -> Vec3 {
     let mut rec = HitRecord::new();
@@ -184,8 +186,8 @@ fn main() {
 
     let num_logical_cores = num_cpus::get();
 
-    const NX: usize = 600;
-    const NY: usize = 400;
+    const NX: usize = 1440;
+    const NY: usize = 720;
     const NS: i32 = 10;
 
     let mut the_world = HitableList::new();
@@ -207,48 +209,40 @@ fn main() {
         dist_to_focus,
     );
 
-    // create a vector of framebuffers, one per core
-    let y_per_core = NY/num_logical_cores + 1;
-    let mut framebuffer = Vec::<Vec<[[f64; 3]; NX]>>::new();
-    for _core in 0..num_logical_cores {
-        let mut local_framebuffer = Vec::<[[f64; 3]; NX]>:: new();
-        for _y in 0..y_per_core {
-            local_framebuffer.push([[0.0f64; 3]; NX]);
-        }
-        framebuffer.push(local_framebuffer);
-    }
-
-    for c in 0..num_logical_cores {
-        // create something we can work on independently per core
-        for y in 0..y_per_core {
-            let j = y*num_logical_cores + c;
-            if j >= NY {
-                break;
-            }
-            for i in 0..NX {
-                let mut col = Vec3::new(0.0, 0.0, 0.0);
-                for _s in 0..NS {
-                    let u = (i as f64 + rng.gen::<f64>()) / (NX as f64);
-                    let v = (j as f64 + rng.gen::<f64>()) / (NY as f64);
-                    let r = cam.get_ray(u, v, &mut rng);
-                    col += color(&r, &world, 0, &mut rng);
+    // use thread per row for concurrency.
+    let mut framebuffer = vec![[[0.0f64; 3]; NX]; NY];
+    let mut pool = Pool::new(num_logical_cores as u32);
+    pool.scoped(|scope| {
+        let mut j = 0;
+        for framebuffer_row in &mut framebuffer {
+            scope.execute(move || {
+                // create something we can work on independently per core
+                let seed2: &[_] = &[1984 + j];
+                let mut rng2: StdRng = SeedableRng::from_seed(seed2);
+                for i in 0..NX {
+                    let mut col = Vec3::new(0.0, 0.0, 0.0);
+                    for _s in 0..NS {
+                        let u = (i as f64 + rng2.gen::<f64>()) / (NX as f64);
+                        let v = (j as f64 + rng2.gen::<f64>()) / (NY as f64);
+                        let r = cam.get_ray(u, v, &mut rng2);
+                        col += color(&r, &world, 0, &mut rng2);
+                    }
+                    (*framebuffer_row)[i][0] = col[0];
+                    (*framebuffer_row)[i][1] = col[1];
+                    (*framebuffer_row)[i][2] = col[2];
                 }
-                framebuffer[c][y][i][0] = col[0];
-                framebuffer[c][y][i][1] = col[1];
-                framebuffer[c][y][i][2] = col[2];
-            }
+            });
+            j += 1;
         }
-    }
+    });
 
     println!("P3\n{0} {1} 255", NX, NY);
     for j in (0..NY).rev() {
-        let c = j % num_logical_cores;
-        let y = j / num_logical_cores;
         for i in 0..NX {
             // final div by samples & gamma correction
-            let ri = (255.99 * (framebuffer[c][y][i][0] / NS as f64).sqrt()) as u8;
-            let gi = (255.99 * (framebuffer[c][y][i][1] / NS as f64).sqrt()) as u8;
-            let bi = (255.99 * (framebuffer[c][y][i][2] / NS as f64).sqrt()) as u8;
+            let ri = (255.99 * (framebuffer[j][i][0] / NS as f64).sqrt()) as u8;
+            let gi = (255.99 * (framebuffer[j][i][1] / NS as f64).sqrt()) as u8;
+            let bi = (255.99 * (framebuffer[j][i][2] / NS as f64).sqrt()) as u8;
             println!("{0} {1} {2}", ri, gi, bi);
         }
     }
