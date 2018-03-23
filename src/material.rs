@@ -20,8 +20,8 @@ pub fn scatter<R: Rng>(
     match rec.material {
         Material::Lambertian { ref albedo } => {
             let target = rec.p + rec.normal + random_in_unit_sphere(rng);
-            *scattered = Ray::new(rec.p, target - rec.p);
             *attenuation = *albedo;
+            *scattered = Ray::new(rec.p, target - rec.p);
             true
         }
 
@@ -29,42 +29,46 @@ pub fn scatter<R: Rng>(
             ref albedo,
             ref fuzz,
         } => {
-            let reflected = reflect(&unit_vector(r_in.direction()), &rec.normal);
-            *scattered = Ray::new(rec.p, reflected + *fuzz * random_in_unit_sphere(rng));
+            let reflected = reflect(&unit_vector(r_in.direction), &rec.normal);
             *attenuation = *albedo;
-            dot(&scattered.direction(), &rec.normal) > 0.0
+            *scattered = Ray::new(rec.p, reflected + *fuzz * random_in_unit_sphere(rng));
+            dot(&scattered.direction, &rec.normal) > 0.0
         }
 
         Material::Dielectric { ref ref_idx } => {
-            // initialize with first else clause
-            let mut outward_normal = rec.normal;
-            let mut ni_over_nt = 1.0 / *ref_idx;
-            let mut cosine = -dot(&r_in.direction(), &rec.normal) / r_in.direction().length();
-            let mut reflect_prob: f64;
-            let reflected = reflect(&r_in.direction(), &rec.normal);
-            *attenuation = Vec3::new(1.0, 1.0, 1.0); // intentional bug fixed
+            // are we entering or exiting the material?
+            let entering = dot(&r_in.direction, &rec.normal) > 0.0;
+            let mut outward_normal = if entering {
+                -rec.normal
+            } else {
+                rec.normal
+            };
+            let mut ni_over_nt = if entering { *ref_idx } else { 1.0 / *ref_idx };
+            let mut cosine = if entering {
+                ref_idx * dot(&r_in.direction, &rec.normal) / r_in.direction.length()
+            } else {
+                -dot(&r_in.direction, &rec.normal) / r_in.direction.length()
+            };
+
             let mut refracted = Vec3::new(0.0, 0.0, 0.0);
-            if dot(&r_in.direction(), &rec.normal) > 0.0 {
-                outward_normal = -rec.normal;
-                ni_over_nt = *ref_idx;
-                cosine = ref_idx * dot(&r_in.direction(), &rec.normal) / r_in.direction().length();
-            } // else case in initialization
-            if refract(
-                &r_in.direction(),
+            let mut reflect_prob = if refract(
+                &r_in.direction,
                 &outward_normal,
                 ni_over_nt,
                 &mut refracted,
             ) {
-                reflect_prob = schlick(cosine, *ref_idx);
+                schlick(cosine, *ref_idx)
             } else {
-                // no need for perf bug *scattered = Ray::new(rec.p, refracted);
-                reflect_prob = 1.0;
-            }
-            if rng.gen::<f64>() < reflect_prob {
-                *scattered = Ray::new(rec.p, reflected);
+                1.0
+            };
+
+            *attenuation = Vec3::new(1.0, 1.0, 1.0);
+            *scattered = if rng.gen::<f64>() < reflect_prob {
+                let reflected = reflect(&r_in.direction, &rec.normal);
+                Ray::new(rec.p, reflected)
             } else {
-                *scattered = Ray::new(rec.p, refracted);
-            }
+                Ray::new(rec.p, refracted)
+            };
             true
         }
     }

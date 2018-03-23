@@ -3,7 +3,7 @@ use rand::Rng;
 use vec3::{cross, random_in_unit_disk, unit_vector, Vec3};
 use std;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Debug)]
 pub struct Camera {
     origin: Vec3,
     lower_left_corner: Vec3,
@@ -37,9 +37,9 @@ impl Camera {
                 - focus_dist * w,
             horizontal: 2.0 * half_width * focus_dist * u,
             vertical: 2.0 * half_height * focus_dist * v,
-            u: u,
-            v: v,
-            w: w,
+            u,
+            v,
+            w,
             lens_radius: aperture / 2.0,
         }
     }

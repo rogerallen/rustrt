@@ -7,6 +7,9 @@ pub struct Vec3 {
     e: [f64; 3],
 }
 
+// Note, I did profile & found #inline pragmas helped alot with
+// minimal compile-time addition.
+
 impl Vec3 {
     #[inline(always)]
     pub fn new(x: f64, y: f64, z: f64) -> Vec3 {
@@ -258,6 +261,7 @@ pub fn reflect(v: &Vec3, n: &Vec3) -> Vec3 {
 
 #[inline(always)]
 pub fn refract(v: &Vec3, n: &Vec3, ni_over_nt: f64, refracted: &mut Vec3) -> bool {
+    // This is described in Foley & Van Dam 2nd Ed. p. 758
     let uv = unit_vector(*v);
     let dt = dot(&uv, n);
     let discriminant = 1.0 - ni_over_nt * ni_over_nt * (1.0 - dt * dt);

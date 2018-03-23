@@ -2,7 +2,7 @@ use vec3::Vec3;
 use ray::Ray;
 use material::Material;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Debug)]
 pub struct HitRecord {
     pub t: f64,
     pub p: Vec3,

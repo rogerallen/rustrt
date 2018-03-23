@@ -1,7 +1,6 @@
 // cargo run > out.ppm
-extern crate num_cpus;
 extern crate rand;
-extern crate scoped_threadpool;
+extern crate rayon;
 
 mod camera;
 mod hitable;
@@ -20,20 +19,20 @@ use ray::Ray;
 use sphere::Sphere;
 use std::f64;
 use vec3::{unit_vector, Vec3};
-use scoped_threadpool::Pool;
+use rayon::prelude::*;
 
 fn color<R: Rng>(r: &Ray, world: &HitableList, depth: i32, rng: &mut R) -> Vec3 {
     let mut rec = HitRecord::new();
     if world.hit(r, 0.001, f64::MAX, &mut rec) {
         let mut scattered = Ray::new(Vec3::new(0.0, 0.0, 0.0), Vec3::new(0.0, 0.0, 0.0));
         let mut attenuation = Vec3::new(0.0, 0.0, 0.0);
-        if depth < 50 && scatter(r, &mut rec, &mut attenuation, &mut scattered, rng) {
+        if depth < 50 && scatter(r, &rec, &mut attenuation, &mut scattered, rng) {
             attenuation * color(&scattered, world, depth + 1, rng)
         } else {
             Vec3::new(0.0, 0.0, 0.0)
         }
     } else {
-        let unit_direction = unit_vector(r.direction());
+        let unit_direction = unit_vector(r.direction);
         let t = 0.5 * (unit_direction.y() + 1.0);
         (1.0 - t) * Vec3::new(1.0, 1.0, 1.0) + t * Vec3::new(0.5, 0.7, 1.0)
     }
@@ -115,9 +114,9 @@ fn final_scene<'a, R: Rng>(world: &'a mut HitableList, rng: &mut R) -> &'a Hitab
         for b in -11..11 {
             let choose_mat = rng.gen::<f64>();
             let center = Vec3::new(
-                a as f64 + 0.9 * rng.gen::<f64>(),
+                f64::from(a) + 0.9 * rng.gen::<f64>(),
                 0.2,
-                b as f64 + 0.9 * rng.gen::<f64>(),
+                f64::from(b) + 0.9 * rng.gen::<f64>(),
             );
             if (center - Vec3::new(4., 0.2, 0.)).length() > 0.9 {
                 if choose_mat < 0.8 {
@@ -184,8 +183,6 @@ fn main() {
     let seed: &[_] = &[1984];
     let mut rng: StdRng = SeedableRng::from_seed(seed);
 
-    let num_logical_cores = num_cpus::get();
-
     const NX: usize = 1440;
     const NY: usize = 720;
     const NS: i32 = 10;
@@ -211,38 +208,35 @@ fn main() {
 
     // use thread per row for concurrency.
     let mut framebuffer = vec![[[0.0f64; 3]; NX]; NY];
-    let mut pool = Pool::new(num_logical_cores as u32);
-    pool.scoped(|scope| {
-        let mut j = 0;
-        for framebuffer_row in &mut framebuffer {
-            scope.execute(move || {
-                // create something we can work on independently per core
-                let seed2: &[_] = &[1984 + j];
-                let mut rng2: StdRng = SeedableRng::from_seed(seed2);
-                for i in 0..NX {
-                    let mut col = Vec3::new(0.0, 0.0, 0.0);
-                    for _s in 0..NS {
-                        let u = (i as f64 + rng2.gen::<f64>()) / (NX as f64);
-                        let v = (j as f64 + rng2.gen::<f64>()) / (NY as f64);
-                        let r = cam.get_ray(u, v, &mut rng2);
-                        col += color(&r, &world, 0, &mut rng2);
-                    }
-                    (*framebuffer_row)[i][0] = col[0];
-                    (*framebuffer_row)[i][1] = col[1];
-                    (*framebuffer_row)[i][2] = col[2];
+    framebuffer
+        .par_iter_mut()
+        .enumerate()
+        .map(|(j, framebuffer_row): (usize, &mut [[f64; 3]; NX])| {
+            let seed2: &[_] = &[1984 + j];
+            let mut rng2: StdRng = SeedableRng::from_seed(seed2);
+            for i in 0..NX {
+                let mut col = Vec3::new(0.0, 0.0, 0.0);
+                for _s in 0..NS {
+                    let u = (i as f64 + rng2.gen::<f64>()) / (NX as f64);
+                    let v = (j as f64 + rng2.gen::<f64>()) / (NY as f64);
+                    let r = cam.get_ray(u, v, &mut rng2);
+                    col += color(&r, world, 0, &mut rng2);
                 }
-            });
-            j += 1;
-        }
-    });
+                (*framebuffer_row)[i][0] = col[0];
+                (*framebuffer_row)[i][1] = col[1];
+                (*framebuffer_row)[i][2] = col[2];
+            }
+            framebuffer_row
+        })
+        .collect::<Vec<_>>();
 
     println!("P3\n{0} {1} 255", NX, NY);
     for j in (0..NY).rev() {
         for i in 0..NX {
             // final div by samples & gamma correction
-            let ri = (255.99 * (framebuffer[j][i][0] / NS as f64).sqrt()) as u8;
-            let gi = (255.99 * (framebuffer[j][i][1] / NS as f64).sqrt()) as u8;
-            let bi = (255.99 * (framebuffer[j][i][2] / NS as f64).sqrt()) as u8;
+            let ri = (255.99 * (framebuffer[j][i][0] / f64::from(NS)).sqrt()) as u8;
+            let gi = (255.99 * (framebuffer[j][i][1] / f64::from(NS)).sqrt()) as u8;
+            let bi = (255.99 * (framebuffer[j][i][2] / f64::from(NS)).sqrt()) as u8;
             println!("{0} {1} {2}", ri, gi, bi);
         }
     }
