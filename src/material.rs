@@ -51,16 +51,12 @@ pub fn scatter<R: Rng>(
             };
 
             let mut refracted = Vec3::new(0.0, 0.0, 0.0);
-            let mut reflect_prob = if refract(
-                &r_in.direction,
-                &outward_normal,
-                ni_over_nt,
-                &mut refracted,
-            ) {
-                schlick(cosine, *ref_idx)
-            } else {
-                1.0
-            };
+            let mut reflect_prob =
+                if refract(&r_in.direction, &outward_normal, ni_over_nt, &mut refracted) {
+                    schlick(cosine, *ref_idx)
+                } else {
+                    1.0
+                };
 
             *attenuation = Vec3::new(1.0, 1.0, 1.0);
             *scattered = if rng.gen::<f64>() < reflect_prob {
