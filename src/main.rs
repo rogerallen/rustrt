@@ -20,14 +20,17 @@ use sphere::Sphere;
 use std::f64;
 use vec3::{unit_vector, Vec3};
 use rayon::prelude::*;
+use std::sync::{Mutex,Arc};
+use std::time::Instant;
 
-fn color<R: Rng>(r: &Ray, world: &HitableList, depth: i32, rng: &mut R) -> Vec3 {
+fn color<R: Rng>(r: &Ray, world: &HitableList, depth: i32, rng: &mut R, ray_count: &mut i32) -> Vec3 {
     let mut rec = HitRecord::new();
     if world.hit(r, 0.001, f64::MAX, &mut rec) {
         let mut scattered = Ray::new(Vec3::new(0.0, 0.0, 0.0), Vec3::new(0.0, 0.0, 0.0));
+        *ray_count += 1;
         let mut attenuation = Vec3::new(0.0, 0.0, 0.0);
         if depth < 50 && scatter(r, &rec, &mut attenuation, &mut scattered, rng) {
-            attenuation * color(&scattered, world, depth + 1, rng)
+            attenuation * color(&scattered, world, depth + 1, rng, ray_count)
         } else {
             Vec3::new(0.0, 0.0, 0.0)
         }
@@ -187,6 +190,7 @@ fn main() {
     const NY: usize = 720;
     const NS: i32 = 10;
 
+    eprintln!("rendering {}x{} image with {} samples/pixel",NX,NY,NS);
     let mut the_world = HitableList::new();
     //let world = original_scene(&mut world);
     //let world = redblue_scene(&mut world);
@@ -206,29 +210,41 @@ fn main() {
         dist_to_focus,
     );
 
+    let num_rays = Arc::new(Mutex::new(0));
     // use thread per row for concurrency.
     let mut framebuffer = vec![[[0.0f64; 3]; NX]; NY];
+    let render_start = Instant::now();
     framebuffer
-        .par_iter_mut()
+        .par_iter_mut() // rayon speedup here
         .enumerate()
         .map(|(j, framebuffer_row): (usize, &mut [[f64; 3]; NX])| {
             let seed2: &[_] = &[1984 + j];
             let mut rng2: StdRng = SeedableRng::from_seed(seed2);
+            let num_rays = Arc::clone(&num_rays);
+            let mut ray_count = 0;
             for i in 0..NX {
                 let mut col = Vec3::new(0.0, 0.0, 0.0);
                 for _s in 0..NS {
                     let u = (i as f64 + rng2.gen::<f64>()) / (NX as f64);
                     let v = (j as f64 + rng2.gen::<f64>()) / (NY as f64);
                     let r = cam.get_ray(u, v, &mut rng2);
-                    col += color(&r, world, 0, &mut rng2);
+                    col += color(&r, world, 0, &mut rng2, &mut ray_count);
                 }
                 (*framebuffer_row)[i][0] = col[0];
                 (*framebuffer_row)[i][1] = col[1];
                 (*framebuffer_row)[i][2] = col[2];
             }
+            let mut guard_num_rays = num_rays.lock().unwrap();
+            *guard_num_rays += ray_count;
             framebuffer_row
         })
         .collect::<Vec<_>>();
+    let render_dur = render_start.elapsed();
+    let render_secs = render_dur.as_secs() as f64 + 1e-9*(render_dur.subsec_nanos() as f64);
+    let safe_num_rays = *num_rays.lock().unwrap() as f64;
+    let rays_per_sec = safe_num_rays / render_secs;
+
+    eprintln!("rays = {}, time = {:.1}s rays/sec = {:.0}",safe_num_rays, render_secs, rays_per_sec);
 
     println!("P3\n{0} {1} 255", NX, NY);
     for j in (0..NY).rev() {
