@@ -1,5 +1,5 @@
 [package]
-name = "rrt"
+name = "rustrt"
 version = "0.1.0"
 authors = ["Roger Allen <rallen@gmail.com>"]
 

@@ -194,12 +194,12 @@ fn main() {
 
     const NX: usize = 1440;
     const NY: usize = 720;
-    const NS: i32 = 10;
+    const NS: i32 = 32;
 
     eprintln!("rendering {}x{} image with {} samples/pixel", NX, NY, NS);
     let mut the_world = HitableList::new();
-    //let world = original_scene(&mut world);
-    //let world = redblue_scene(&mut world);
+    //let world = original_scene(&mut the_world);
+    //let world = redblue_scene(&mut the_world);
     let world = final_scene(&mut the_world, &mut rng);
 
     let lookfrom = Vec3::new(13., 2., 3.);
@@ -234,6 +234,7 @@ fn main() {
                     let u = (i as f64 + rng2.gen::<f64>()) / (NX as f64);
                     let v = (j as f64 + rng2.gen::<f64>()) / (NY as f64);
                     let r = cam.get_ray(u, v, &mut rng2);
+                    row_rays += 1;
                     col += color(&r, world, 0, &mut rng2, &mut row_rays);
                 }
                 (*framebuffer_row)[i][0] = col[0];
